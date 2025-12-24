@@ -17,11 +17,10 @@ import (
 // ----------------------------
 const uploadDir = "./uploads/"
 const maxUploadSize = 500 * 1024 * 1024 // 500 MB
-const pgpHeader = "-----BEGIN PGP MESSAGE-----"
-
 // ----------------------------
 // Utilities
 // ----------------------------
+
 func generateRandomName(n int) string {
 	const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 	rand.Seed(time.Now().UnixNano())
@@ -36,6 +35,8 @@ func generateRandomName(n int) string {
 // Handlers
 // ----------------------------
 func handleFileUpload(w http.ResponseWriter, r *http.Request) {
+	const pgpHeader = "-----BEGIN PGP MESSAGE-----"
+
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed. Use POST.", http.StatusMethodNotAllowed)
 		return
