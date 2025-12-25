@@ -129,3 +129,10 @@ a:hover {
     font-size: 0.9rem;
     overflow-x: auto;
 }
+
+.logo {
+    display: block;
+    margin: 0 auto;
+    width: 45%;
+    height: auto;
+}
