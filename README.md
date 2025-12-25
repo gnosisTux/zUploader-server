@@ -3,17 +3,17 @@
 ---
 
 ![interface](https://i.imgur.com/d7j7GWb.png)
+![encryptedfile](https://i.imgur.com/eN4HCn2.png)
 
-zUploader is a minimalist server for uploading files encrypted with **symmetric PGP** from the browser. Perfect for secure and private transfers.
-
-> ⚠️ **Important:** The web interface only supports basic symmetric encryption.
-> For full functionality and better security, **always use the terminal client**: [https://github.com/gnosisTux/zUploader](https://github.com/gnosisTux/zUploader)
+zUploader is a minimalist server for uploading and **decrypting files with symmetric PGP directly from the browser**.  
+This server is designed to work alongside the **zUploader terminal client**, which adds **asymmetric encryption** and optimized CLI usage: [https://github.com/gnosisTux/zUploader](https://github.com/gnosisTux/zUploader)
 
 ---
 
 ## Features
 
 * Upload files encrypted directly in the browser (symmetric PGP only).
+* Decrypt files directly from the browser.
 * Configurable maximum file size (default 500 MB).
 * Files saved with random names for extra security.
 * Direct download via unique URL.
@@ -29,9 +29,10 @@ zUploader is a minimalist server for uploading files encrypted with **symmetric 
 ```bash
 git clone https://github.com/gnosisTux/zUploader-server.git
 cd zUploader-server
-```
+````
 
 2. Run the server:
+    
 
 ```bash
 go run main.go
@@ -58,31 +59,30 @@ server/
 ## Web Usage (basic only)
 
 1. Open `http://localhost:8001` in your browser.
-2. Select a file and enter an encryption password.
-3. Click **Encrypt & Upload**.
-4. Get the download link for your file.
+    
+2. To upload: select a file and enter an encryption password. Click **Encrypt & Upload**.
+    
+3. To decrypt: open the file link, enter the password, and click **Decrypt & Download**.
+    
+4. Receive your decrypted file directly in the browser.
+    
 
-> ⚠️ The web interface **only supports symmetric encryption**. For any other functionality, use the terminal client.
+> ⚠️ The web interface **only supports symmetric encryption**.
 
 ---
 
 ## Security
 
-* Only files starting with the PGP header (`-----BEGIN PGP MESSAGE-----`) are accepted.
-* File names are generated randomly.
-* No passwords or sensitive information are stored on the server.
-
----
-
-## Recommended Client
-
-For a complete and secure workflow, use the **terminal client**: [https://github.com/gnosisTux/zUploader](https://github.com/gnosisTux/zUploader)
+- Only files starting with the PGP header (`-----BEGIN PGP MESSAGE-----`) are accepted.
+    
+- File names are generated randomly.
+    
+- No passwords or sensitive information are stored on the server.
+    
 
 ---
 
 ## License
 
-This project is licensed under **GPLv3**.
+This project is licensed under **GPLv3**.  
 See the `LICENSE` file for details.
-
-
