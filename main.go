@@ -15,8 +15,11 @@ import (
 // ----------------------------
 // Configuration
 // ----------------------------
-const uploadDir = "./uploads/"
-const maxUploadSize = 500 * 1024 * 1024 // 500 MB
+const (
+	uploadDir     = "./uploads/"
+	maxUploadSize = 500 * 1024 * 1024 // 500 MB
+)
+
 // ----------------------------
 // Utilities
 // ----------------------------
@@ -112,24 +115,35 @@ func handleFileUpload(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleFileDownload(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		http.Error(w, "Method not allowed. Use GET.", http.StatusMethodNotAllowed)
+	path := strings.TrimPrefix(r.URL.Path, "/uploads/")
+	if path == "" {
+		http.Error(w, "No file specified", 400)
 		return
 	}
 
-	filename := strings.TrimPrefix(r.URL.Path, "/uploads/")
-	if filename == "" {
-		http.Error(w, "No file specified", http.StatusBadRequest)
-		return
+	raw := false
+	if strings.HasSuffix(path, "/raw") {
+		raw = true
+		path = strings.TrimSuffix(path, "/raw")
 	}
 
-	filePath := filepath.Join(uploadDir, filepath.Clean(filename))
-	if _, err := os.Stat(filePath); os.IsNotExist(err) {
+	filePath := filepath.Join(uploadDir, filepath.Clean(path))
+	if _, err := os.Stat(filePath); err != nil {
 		http.NotFound(w, r)
 		return
 	}
 
-	http.ServeFile(w, r, filePath)
+	if raw {
+		w.Header().Set("Content-Type", "application/octet-stream")
+		w.Header().Set("Content-Disposition", "attachment")
+		http.ServeFile(w, r, filePath)
+		return
+	}
+
+	tmpl := template.Must(template.ParseFiles("templates/decrypt.html"))
+	tmpl.Execute(w, map[string]string{
+		"File": path,
+	})
 }
 
 func handler(w http.ResponseWriter, r *http.Request) {

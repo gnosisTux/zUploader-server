@@ -1,18 +1,22 @@
+/* --------------------------
+   Global
+-------------------------- */
 body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     background-color: #121212;
     color: #e0e0e0;
-
     display: flex;
     justify-content: center;
     align-items: flex-start;
-
     min-height: 100vh;
     margin: 0;
     padding: 40px 0;
     overflow-y: auto;
 }
 
+/* --------------------------
+   Containers
+-------------------------- */
 .container {
     background-color: #1e1e1e;
     padding: 30px;
@@ -35,6 +39,9 @@ h2 {
     font-weight: normal;
 }
 
+/* --------------------------
+   Notices
+-------------------------- */
 #maxUploadNotice {
     margin: 15px 0;
     padding: 12px;
@@ -46,11 +53,13 @@ h2 {
     text-align: center;
 }
 
+/* --------------------------
+   Inputs & Buttons
+-------------------------- */
 input,
 button {
     margin: 10px 0;
     padding: 10px;
-    width: 90%;
     border-radius: 6px;
     border: 1px solid #444;
     background-color: #2c2c2c;
@@ -76,12 +85,16 @@ button {
     border: none;
     font-weight: bold;
     cursor: pointer;
+    transition: background 0.2s;
 }
 
 button:hover {
     background: #1e7e34;
 }
 
+/* --------------------------
+   Progress bar
+-------------------------- */
 #progressContainer {
     margin-top: 15px;
     height: 20px;
@@ -98,6 +111,9 @@ button:hover {
     transition: width 0.2s ease;
 }
 
+/* --------------------------
+   Links
+-------------------------- */
 #linkContainer {
     margin-top: 15px;
     word-break: break-word;
@@ -112,6 +128,9 @@ a:hover {
     text-decoration: underline;
 }
 
+/* --------------------------
+   CLI instructions
+-------------------------- */
 .cli-instructions {
     margin-top: 25px;
     text-align: left;
@@ -130,9 +149,77 @@ a:hover {
     overflow-x: auto;
 }
 
+/* --------------------------
+   Logo
+-------------------------- */
 .logo {
     display: block;
-    margin: 0 auto;
+    margin: 0 auto 20px auto;
     width: 45%;
     height: auto;
+}
+
+/* --------------------------
+   Decrypt page tweaks
+-------------------------- */
+.decrypt-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 10px; /* separación entre input y botón */
+    margin-top: 20px;
+    flex-wrap: wrap; /* que no rompa en móvil */
+}
+
+.decrypt-container input[type="password"] {
+    flex: 1 1 200px; /* crece según espacio disponible, mínimo 200px */
+    padding: 10px;
+    border-radius: 6px;
+    border: 1px solid #444;
+    background-color: #2c2c2c;
+    color: #e0e0e0;
+    font-size: 1rem;
+}
+
+.decrypt-container button {
+    padding: 10px 20px;
+    border-radius: 6px;
+    border: none;
+    background: #28a745;
+    color: #fff;
+    font-weight: bold;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background 0.2s;
+}
+
+.decrypt-container button:hover {
+    background: #1e7e34;
+}
+
+/* --------------------------
+   Cooldown message (main.js)
+-------------------------- */
+#cooldownMessage {
+    color: yellow;
+    margin-top: 10px;
+}
+
+/* --------------------------
+   Responsive tweaks
+-------------------------- */
+@media (max-width: 500px) {
+    .container {
+        width: 90%;
+        padding: 20px;
+    }
+
+    input, button {
+        width: 100%;
+    }
+
+    .decrypt-container {
+        flex-direction: column;
+        gap: 10px;
+    }
 }

@@ -1,0 +1,21 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Decrypt file</title>
+<script src="https://unpkg.com/openpgp@5.6.0/dist/openpgp.min.js"></script>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<div class="container decrypt-container">
+  <h2>Encrypted File</h2>
+  <input type="password" id="password" placeholder="Password">
+  <button onclick="decrypt()">Decrypt & Download</button>
+</div>
+<script>
+  const fileName = "{{ .File }}";
+</script>
+<script src="/static/decrypt.js"></script>
+</body>
+</html>
