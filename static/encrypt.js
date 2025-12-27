@@ -45,7 +45,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         if (!fileInput.files.length) {
-            alert("Select a file first");
+            alert("Select at least one file");
             return;
         }
         if (!passwordInput.value) {
@@ -55,19 +55,27 @@ document.addEventListener("DOMContentLoaded", () => {
 
         startCooldown(60); // 1 min cooldown
 
-        const file = fileInput.files[0];
-        const arrayBuffer = await file.arrayBuffer();
-        const uint8Array = new Uint8Array(arrayBuffer);
-
         try {
+            // Create a zip containing all selected files
+            const zip = new JSZip();
+            for (const file of fileInput.files) {
+                const arrayBuffer = await file.arrayBuffer();
+                zip.file(file.name, arrayBuffer); // keep original file name and extension
+            }
+
+            const zipContent = await zip.generateAsync({ type: "uint8array" });
+
+            // Encrypt the zip with PGP symmetric encryption
             const encrypted = await openpgp.encrypt({
-                message: await openpgp.createMessage({ binary: uint8Array }),
+                message: await openpgp.createMessage({ binary: zipContent }),
                 passwords: [passwordInput.value],
                 format: 'armored'
             });
 
             const encryptedBlob = new Blob([encrypted], { type: 'text/plain' });
-            const encryptedFilename = file.name;
+
+            // File to upload
+            const encryptedFilename = "batch_upload.zip";
 
             const formData = new FormData();
             formData.append('file', encryptedBlob, encryptedFilename);
@@ -89,7 +97,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     const url = xhr.responseText.split("Download at: ")[1];
                     if (url) {
                         const text = document.createElement("span");
-                        text.textContent = "Download your file: ";
+                        text.textContent = "Download your encrypted batch file: ";
                         const a = document.createElement("a");
                         a.href = url.trim();
                         a.textContent = url.trim();
@@ -98,7 +106,6 @@ document.addEventListener("DOMContentLoaded", () => {
                         linkContainer.appendChild(text);
                         linkContainer.appendChild(a);
                     }
-                    // Reset file and password after successful upload
                     fileInput.value = "";
                     passwordInput.value = "";
                 } else {
@@ -112,8 +119,7 @@ document.addEventListener("DOMContentLoaded", () => {
             xhr.send(formData);
 
         } catch (err) {
-            alert("Encryption failed (You may need to enable JS): " + err.message);
-            // Reset cooldown on error
+            alert("Encryption or upload failed: " + err.message);
             clearInterval(cooldownInterval);
             cooldown = false;
             uploadBtn.disabled = false;

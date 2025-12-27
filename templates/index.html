@@ -5,21 +5,27 @@
     <title>zUploader</title>
     <link rel="stylesheet" href="/static/style.css">
     <script src="https://unpkg.com/openpgp@5.6.0/dist/openpgp.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 </head>
 <body>
 
 <div class="container">
     <img src="/static/zuploader.png" alt="zUploader" class="logo">
     <h2>Hello {{ .IP }}</h2>
-    
+
     <!-- Max upload notice -->
     <div id="maxUploadNotice">
         ⚠️ Maximum upload size: <strong>{{ .MaxUpload }} MB</strong>
     </div>
 
-    <p>Securely upload files encrypted with <strong>PGP symmetric encryption</strong>. For advanced usage, check out our CLI tools that support asymmetric encryption too.</p>
+    <p>
+        Securely upload files encrypted with <strong>PGP symmetric encryption</strong> directly from your browser. 
+        You can select <strong>multiple files</strong>, they will be automatically combined into a single encrypted zip. 
+        For advanced usage, check out our CLI tools that support asymmetric encryption.
+    </p>
 
-    <input type="file" id="fileInput"><br>
+    <!-- Multi-file input -->
+    <input type="file" id="fileInput" multiple><br>
     <input type="password" id="password" placeholder="Encryption password"><br>
     <button id="uploadBtn">Encrypt & Upload</button>
 
@@ -30,7 +36,7 @@
 
     <div class="cli-instructions">
         <strong>Recommended CLI usage:</strong><br>
-        For full functionality, including asymmetric encryption, use the CLI tools from: 
+        For full functionality including asymmetric encryption, use the CLI tools from: 
         <a href="https://github.com/gnosisTux/zUploader" target="_blank">github.com/gnosisTux/zUploader</a><br><br>
         <em>Web uploads always use symmetric PGP encryption.</em><br><br>
         Basic commands:<br>
