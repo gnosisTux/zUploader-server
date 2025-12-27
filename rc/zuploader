@@ -1,0 +1,54 @@
+#!/bin/sh
+#
+# PROVIDE: zuploader
+# REQUIRE: LOGIN
+# KEYWORD: shutdown
+#
+# zuploader FreeBSD rc script
+# Copyright (C) 2025 gnosisTux
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+# See <https://www.gnu.org/licenses/>.
+
+. /etc/rc.subr
+
+name="zuploader"
+rcvar=zuploader_enable
+command="/home/zuploader/zuploader"
+pidfile="/var/run/${name}.pid"
+
+load_rc_config $name
+: ${zuploader_enable:=no}
+
+start_precmd="zuploader_precmd"
+start_cmd="zuploader_start"
+stop_cmd="zuploader_stop"
+
+# Change to the working directory
+zuploader_precmd() {
+    cd /home/zuploader || return 1
+}
+
+# Start the service as user 'zuploader'
+zuploader_start() {
+    echo "Starting zuploader..."
+    /usr/sbin/daemon -p $pidfile -u zuploader $command
+}
+
+# Stop the service
+zuploader_stop() {
+    echo "Stopping zuploader..."
+    if [ -f $pidfile ]; then
+        kill "$(cat $pidfile)"
+        rm -f $pidfile
+    fi
+}
+
+run_rc_command "$1"
