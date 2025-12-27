@@ -56,26 +56,32 @@ document.addEventListener("DOMContentLoaded", () => {
         startCooldown(60); // 1 min cooldown
 
         try {
-            // Create a zip containing all selected files
-            const zip = new JSZip();
-            for (const file of fileInput.files) {
-                const arrayBuffer = await file.arrayBuffer();
-                zip.file(file.name, arrayBuffer); // keep original file name and extension
+            let fileToEncrypt;
+            let encryptedFilename;
+
+            if (fileInput.files.length === 1) {
+                // Single file: encrypt directly
+                fileToEncrypt = new Uint8Array(await fileInput.files[0].arrayBuffer());
+                encryptedFilename = fileInput.files[0].name;
+            } else {
+                // Multiple files: create zip
+                const zip = new JSZip();
+                for (const file of fileInput.files) {
+                    const arrayBuffer = await file.arrayBuffer();
+                    zip.file(file.name, arrayBuffer);
+                }
+                fileToEncrypt = await zip.generateAsync({ type: "uint8array" });
+                encryptedFilename = "batch_upload.zip";
             }
 
-            const zipContent = await zip.generateAsync({ type: "uint8array" });
-
-            // Encrypt the zip with PGP symmetric encryption
+            // Encrypt with PGP
             const encrypted = await openpgp.encrypt({
-                message: await openpgp.createMessage({ binary: zipContent }),
+                message: await openpgp.createMessage({ binary: fileToEncrypt }),
                 passwords: [passwordInput.value],
                 format: 'armored'
             });
 
             const encryptedBlob = new Blob([encrypted], { type: 'text/plain' });
-
-            // File to upload
-            const encryptedFilename = "batch_upload.zip";
 
             const formData = new FormData();
             formData.append('file', encryptedBlob, encryptedFilename);
@@ -97,7 +103,7 @@ document.addEventListener("DOMContentLoaded", () => {
                     const url = xhr.responseText.split("Download at: ")[1];
                     if (url) {
                         const text = document.createElement("span");
-                        text.textContent = "Download your encrypted batch file: ";
+                        text.textContent = "Download your encrypted file: ";
                         const a = document.createElement("a");
                         a.href = url.trim();
                         a.textContent = url.trim();
@@ -106,6 +112,7 @@ document.addEventListener("DOMContentLoaded", () => {
                         linkContainer.appendChild(text);
                         linkContainer.appendChild(a);
                     }
+                    // Reset inputs after successful upload
                     fileInput.value = "";
                     passwordInput.value = "";
                 } else {
