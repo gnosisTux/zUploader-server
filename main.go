@@ -1,35 +1,48 @@
 package main
 
 import (
+	"crypto/rand"
 	"fmt"
 	"html/template"
 	"io"
-	"math/rand"
+	"math/big"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 )
 
 // ----------------------------
 // Configuration
 // ----------------------------
 const (
-	uploadDir     = "./uploads/"
-	maxUploadSize = 500 * 1024 * 1024 // 500 MB
+	uploadDir     = "./uploads/"               // Directory to store uploaded files
+	maxUploadSize = 500 * 1024 * 1024          // Maximum allowed upload size (500 MB)
+)
+
+// ----------------------------
+// Templates
+// ----------------------------
+var (
+	indexTmpl   = template.Must(template.ParseFiles("templates/index.html"))    // Main page template
+	decryptTmpl = template.Must(template.ParseFiles("templates/decrypt.html"))  // Decrypt page template
 )
 
 // ----------------------------
 // Utilities
 // ----------------------------
 
+// generateRandomName generates a cryptographically secure random string
+// of length n using letters and digits.
 func generateRandomName(n int) string {
 	const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-	rand.Seed(time.Now().UnixNano())
 	b := make([]byte, n)
 	for i := range b {
-		b[i] = chars[rand.Intn(len(chars))]
+		num, err := rand.Int(rand.Reader, big.NewInt(int64(len(chars))))
+		if err != nil {
+			panic(err) // Extremely rare error if system entropy is unavailable
+		}
+		b[i] = chars[num.Int64()]
 	}
 	return string(b)
 }
@@ -37,6 +50,10 @@ func generateRandomName(n int) string {
 // ----------------------------
 // Handlers
 // ----------------------------
+
+// handleFileUpload handles file upload requests.
+// It validates that the uploaded file is PGP encrypted, limits its size,
+// generates a secure random filename, and saves it to the upload directory.
 func handleFileUpload(w http.ResponseWriter, r *http.Request) {
 	const pgpHeader = "-----BEGIN PGP MESSAGE-----"
 
@@ -45,7 +62,7 @@ func handleFileUpload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Limit upload size
+	// Limit upload size to prevent memory/disk exhaustion
 	r.Body = http.MaxBytesReader(w, r.Body, maxUploadSize)
 
 	file, header, err := r.FormFile("file")
@@ -55,7 +72,7 @@ func handleFileUpload(w http.ResponseWriter, r *http.Request) {
 	}
 	defer file.Close()
 
-	// 🔐 Check PGP header
+	// Verify that the uploaded file starts with PGP header
 	seeker, ok := file.(io.ReadSeeker)
 	if !ok {
 		http.Error(w, "Unable to inspect uploaded file", http.StatusInternalServerError)
@@ -78,16 +95,16 @@ func handleFileUpload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Reset file pointer after inspection
+	// Reset file pointer after reading header
 	_, err = seeker.Seek(0, io.SeekStart)
 	if err != nil {
 		http.Error(w, "Error resetting file pointer", http.StatusInternalServerError)
 		return
 	}
 
-	// Keep original extension (.gpg / .pgp / whatever)
+	// Preserve original extension and generate random filename
 	ext := strings.ToLower(filepath.Ext(header.Filename))
-	randomName := generateRandomName(12) + ext
+	randomName := generateRandomName(16) + ext
 
 	os.MkdirAll(uploadDir, os.ModePerm)
 	dstPath := filepath.Join(uploadDir, randomName)
@@ -114,10 +131,13 @@ func handleFileUpload(w http.ResponseWriter, r *http.Request) {
 	)
 }
 
+// handleFileDownload handles requests to download uploaded files.
+// It prevents path traversal, serves files as attachment if requested,
+// or renders the decryption page.
 func handleFileDownload(w http.ResponseWriter, r *http.Request) {
 	path := strings.TrimPrefix(r.URL.Path, "/uploads/")
 	if path == "" {
-		http.Error(w, "No file specified", 400)
+		http.Error(w, "No file specified", http.StatusBadRequest)
 		return
 	}
 
@@ -128,7 +148,16 @@ func handleFileDownload(w http.ResponseWriter, r *http.Request) {
 	}
 
 	filePath := filepath.Join(uploadDir, filepath.Clean(path))
-	if _, err := os.Stat(filePath); err != nil {
+
+	// Prevent path traversal by ensuring the absolute path is within uploadDir
+	absPath, _ := filepath.Abs(filePath)
+	absUploadDir, _ := filepath.Abs(uploadDir)
+	if !strings.HasPrefix(absPath, absUploadDir) {
+		http.Error(w, "Invalid path", http.StatusBadRequest)
+		return
+	}
+
+	if _, err := os.Stat(absPath); err != nil {
 		http.NotFound(w, r)
 		return
 	}
@@ -136,19 +165,18 @@ func handleFileDownload(w http.ResponseWriter, r *http.Request) {
 	if raw {
 		w.Header().Set("Content-Type", "application/octet-stream")
 		w.Header().Set("Content-Disposition", "attachment")
-		http.ServeFile(w, r, filePath)
+		http.ServeFile(w, r, absPath)
 		return
 	}
 
-	tmpl := template.Must(template.ParseFiles("templates/decrypt.html"))
-	tmpl.Execute(w, map[string]string{
+	decryptTmpl.Execute(w, map[string]string{
 		"File": path,
 	})
 }
 
+// handler renders the main index page, displaying the client IP
+// and maximum upload size. X-Forwarded-For header is used if present.
 func handler(w http.ResponseWriter, r *http.Request) {
-	tmpl := template.Must(template.ParseFiles("templates/index.html"))
-
 	clientIP := r.RemoteAddr
 	if forwarded := r.Header.Get("X-Forwarded-For"); forwarded != "" {
 		clientIP = forwarded
@@ -159,15 +187,18 @@ func handler(w http.ResponseWriter, r *http.Request) {
 		"MaxUpload": maxUploadSize / (1024 * 1024),
 	}
 
-	tmpl.Execute(w, data)
+	indexTmpl.Execute(w, data)
 }
 
 // ----------------------------
 // Main
 // ----------------------------
 func main() {
+	// Serve static assets
 	fs := http.FileServer(http.Dir("static"))
 	http.Handle("/static/", http.StripPrefix("/static/", fs))
+
+	// Define route handlers
 	http.HandleFunc("/upload", handleFileUpload)
 	http.HandleFunc("/uploads/", handleFileDownload)
 	http.HandleFunc("/", handler)
