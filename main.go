@@ -1,4 +1,3 @@
-
 package main
 
 import (
@@ -11,13 +10,23 @@ import (
 func main() {
 	internal.LoadConfig("config.toml")
 
+	internal.InitLogger()
+
 	fs := http.FileServer(http.Dir("static"))
 	http.Handle("/static/", http.StripPrefix("/static/", fs))
+
 	http.HandleFunc("/upload", internal.HandleFileUpload)
 	http.HandleFunc("/uploads/", internal.HandleFileDownload)
 	http.HandleFunc("/", internal.HandleIndex)
 
 	address := fmt.Sprintf("%s:%d", internal.ConfigData.Host, internal.ConfigData.Port)
+
+	internal.Logger.Printf("Server starting on %s", address)
 	fmt.Println("Server running on", address)
-	http.ListenAndServe(address, nil)
+
+	if err := http.ListenAndServe(address, nil); err != nil {
+		internal.Logger.Printf("[FATAL] Server crashed: %v", err)
+		fmt.Println("Server crashed:", err)
+		panic(err)
+	}
 }

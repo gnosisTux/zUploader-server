@@ -15,8 +15,25 @@ var (
 	DecryptTmpl = template.Must(template.ParseFiles("templates/decrypt.html"))
 )
 
+func GetClientIP(r *http.Request) string {
+	xff := r.Header.Get("X-Forwarded-For")
+	if xff == "" {
+		Logger.Printf("[WARN] X-Forwarded-For missing! Request from %s will be logged without real IP.", r.RemoteAddr)
+		return r.RemoteAddr
+	}
+	ip := strings.TrimSpace(strings.Split(xff, ",")[0])
+	if ip == "" {
+		Logger.Printf("[WARN] Empty IP in X-Forwarded-For! Request from %s will be logged without real IP.", r.RemoteAddr)
+		return r.RemoteAddr
+	}
+	return ip
+}
+
 func HandleFileUpload(w http.ResponseWriter, r *http.Request) {
 	const pgpHeader = "-----BEGIN PGP MESSAGE-----"
+
+	ip := GetClientIP(r)
+	ua := r.UserAgent()
 
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed. Use POST.", http.StatusMethodNotAllowed)
@@ -77,9 +94,20 @@ func HandleFileUpload(w http.ResponseWriter, r *http.Request) {
 
 	host := r.Host
 	fmt.Fprintf(w, "File uploaded successfully. Download at: http://%s/uploads/%s", host, randomName)
+
+	Logger.Printf(
+		"[UPLOAD] ip=%s file=%s size=%d ua=\"%s\"",
+		ip,
+		randomName,
+		header.Size,
+		ua,
+	)
 }
 
 func HandleFileDownload(w http.ResponseWriter, r *http.Request) {
+	ip := GetClientIP(r)
+	ua := r.UserAgent()
+
 	path := strings.TrimPrefix(r.URL.Path, "/uploads/")
 	if path == "" {
 		http.Error(w, "No file specified", http.StatusBadRequest)
@@ -106,6 +134,10 @@ func HandleFileDownload(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if raw {
+		Logger.Printf("[DOWNLOAD-RAW] ip=%s file=%s ua=\"%s\"", ip, path, ua)
+		w.Header().Set("Content-Type", "application/octet-stream")
+		w.Header().Set("Content-Disposition", "attachment")
+
 		w.Header().Set("Content-Type", "application/octet-stream")
 		w.Header().Set("Content-Disposition", "attachment")
 		http.ServeFile(w, r, absPath)

@@ -12,10 +12,13 @@ type Config struct {
 	Host        string `toml:"host"`
 	Port        int    `toml:"port"`
 	MaxUploadMB int    `toml:"max_upload_mb"`
+	LogFile     string `toml:"logfile"`
 }
 
-var ConfigData Config
-var MaxUploadSize int64
+var (
+	ConfigData    Config
+	MaxUploadSize int64
+)
 
 func LoadConfig(path string) {
 	if _, err := toml.DecodeFile(path, &ConfigData); err != nil {
