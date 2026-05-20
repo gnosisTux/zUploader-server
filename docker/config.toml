@@ -1,0 +1,5 @@
+upload_dir = "/srv/zuploader/uploads/"
+host = "0.0.0.0"
+port = 8002
+max_upload_mb = 500
+logfile = "/srv/zuploader/zuploader.log"

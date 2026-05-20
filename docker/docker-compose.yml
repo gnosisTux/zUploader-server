@@ -1,0 +1,9 @@
+services:
+  zuploader:
+    build: .
+    ports:
+      - "8002:8002"
+    volumes:
+      - /srv/zuploader/uploads:/srv/zuploader/uploads
+      - ./config.toml:/app/config.toml:ro
+    restart: unless-stopped
