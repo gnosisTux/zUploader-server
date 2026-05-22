@@ -10,8 +10,6 @@ import (
 func main() {
 	internal.LoadConfig("config.toml")
 
-	internal.InitLogger()
-
 	fs := http.FileServer(http.Dir("static"))
 	http.Handle("/static/", http.StripPrefix("/static/", fs))
 
@@ -21,11 +19,11 @@ func main() {
 
 	address := fmt.Sprintf("%s:%d", internal.ConfigData.Host, internal.ConfigData.Port)
 
-	internal.Logger.Printf("Server starting on %s", address)
+	internal.Access.Printf("Server starting on %s", address)
 	fmt.Println("Server running on", address)
 
-	if err := http.ListenAndServe(address, nil); err != nil {
-		internal.Logger.Printf("[FATAL] Server crashed: %v", err)
+	if err := http.ListenAndServe(address, internal.LoggingMiddleware(http.DefaultServeMux)); err != nil {
+		internal.Error.Printf("[FATAL] Server crashed: %v", err)
 		fmt.Println("Server crashed:", err)
 		panic(err)
 	}

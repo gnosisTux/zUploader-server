@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 var (
@@ -18,12 +19,12 @@ var (
 func GetClientIP(r *http.Request) string {
 	xff := r.Header.Get("X-Forwarded-For")
 	if xff == "" {
-		Logger.Printf("[WARN] X-Forwarded-For missing! Request from %s will be logged without real IP.", r.RemoteAddr)
+		Error.Printf("[WARN] X-Forwarded-For missing! Request from %s will be logged without real IP.", r.RemoteAddr)
 		return r.RemoteAddr
 	}
 	ip := strings.TrimSpace(strings.Split(xff, ",")[0])
 	if ip == "" {
-		Logger.Printf("[WARN] Empty IP in X-Forwarded-For! Request from %s will be logged without real IP.", r.RemoteAddr)
+		Error.Printf("[WARN] Empty IP in X-Forwarded-For! Request from %s will be logged without real IP.", r.RemoteAddr)
 		return r.RemoteAddr
 	}
 	return ip
@@ -34,6 +35,7 @@ func HandleFileUpload(w http.ResponseWriter, r *http.Request) {
 
 	ip := GetClientIP(r)
 	ua := r.UserAgent()
+	timestamp := time.Now().UTC().Format(time.RFC3339)
 
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed. Use POST.", http.StatusMethodNotAllowed)
@@ -63,6 +65,7 @@ func HandleFileUpload(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if string(buf) != pgpHeader {
+		Error.Printf("[REJECTED] timestamp=%s ip=%s reason=not_pgp ua=\"%s\"", timestamp, ip, ua)
 		http.Error(w, "Upload rejected: file is not PGP encrypted", http.StatusBadRequest)
 		return
 	}
@@ -81,6 +84,7 @@ func HandleFileUpload(w http.ResponseWriter, r *http.Request) {
 
 	dst, err := os.Create(dstPath)
 	if err != nil {
+		Error.Printf("[ERROR] timestamp=%s ip=%s reason=create_failed err=%v", timestamp, ip, err)
 		http.Error(w, "Error saving file", http.StatusInternalServerError)
 		return
 	}
@@ -88,25 +92,33 @@ func HandleFileUpload(w http.ResponseWriter, r *http.Request) {
 
 	_, err = io.Copy(dst, file)
 	if err != nil {
+		Error.Printf("[ERROR] timestamp=%s ip=%s reason=write_failed err=%v", timestamp, ip, err)
 		http.Error(w, "Error writing file content", http.StatusInternalServerError)
 		return
 	}
 
-	host := r.Host
-	fmt.Fprintf(w, "File uploaded successfully. Download at: http://%s/uploads/%s", host, randomName)
+	proto := r.Header.Get("X-Forwarded-Proto")
+	if proto == "" {
+		proto = "http"
+	}
 
-	Logger.Printf(
-		"[UPLOAD] ip=%s file=%s size=%d ua=\"%s\"",
+	downloadURL := fmt.Sprintf("%s://%s/uploads/%s", proto, r.Host, randomName)
+	fmt.Fprintf(w, "File uploaded successfully. Download at: %s", downloadURL)
+
+	Access.Printf("[UPLOAD] timestamp=%s ip=%s file=%s size_bytes=%d ua=\"%s\" url=%s",
+		timestamp,
 		ip,
 		randomName,
 		header.Size,
 		ua,
+		downloadURL,
 	)
 }
 
 func HandleFileDownload(w http.ResponseWriter, r *http.Request) {
 	ip := GetClientIP(r)
 	ua := r.UserAgent()
+	timestamp := time.Now().UTC().Format(time.RFC3339)
 
 	path := strings.TrimPrefix(r.URL.Path, "/uploads/")
 	if path == "" {
@@ -124,34 +136,33 @@ func HandleFileDownload(w http.ResponseWriter, r *http.Request) {
 	absPath, _ := filepath.Abs(filePath)
 	absUploadDir, _ := filepath.Abs(ConfigData.UploadDir)
 	if !strings.HasPrefix(absPath, absUploadDir) {
+		Error.Printf("[REJECTED] timestamp=%s ip=%s reason=path_traversal path=%s ua=\"%s\"", timestamp, ip, path, ua)
 		http.Error(w, "Invalid path", http.StatusBadRequest)
 		return
 	}
 
 	if _, err := os.Stat(absPath); err != nil {
+		Error.Printf("[NOT_FOUND] timestamp=%s ip=%s file=%s ua=\"%s\"", timestamp, ip, path, ua)
 		http.NotFound(w, r)
 		return
 	}
 
 	if raw {
-		Logger.Printf("[DOWNLOAD-RAW] ip=%s file=%s ua=\"%s\"", ip, path, ua)
-		w.Header().Set("Content-Type", "application/octet-stream")
-		w.Header().Set("Content-Disposition", "attachment")
-
+		Access.Printf("[DOWNLOAD] timestamp=%s ip=%s file=%s ua=\"%s\" mode=raw",
+			timestamp, ip, path, ua)
 		w.Header().Set("Content-Type", "application/octet-stream")
 		w.Header().Set("Content-Disposition", "attachment")
 		http.ServeFile(w, r, absPath)
 		return
 	}
 
+	Access.Printf("[DOWNLOAD] timestamp=%s ip=%s file=%s ua=\"%s\" mode=view",
+		timestamp, ip, path, ua)
 	DecryptTmpl.Execute(w, map[string]string{"File": path})
 }
 
 func HandleIndex(w http.ResponseWriter, r *http.Request) {
-	clientIP := r.RemoteAddr
-	if forwarded := r.Header.Get("X-Forwarded-For"); forwarded != "" {
-		clientIP = forwarded
-	}
+	clientIP := GetClientIP(r)
 
 	data := map[string]interface{}{
 		"IP":        clientIP,
