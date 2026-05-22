@@ -1,0 +1,23 @@
+[Unit]
+Description=zUploader file server
+After=network.target
+
+[Service]
+Type=simple
+User=zuploader
+Group=zuploader
+WorkingDirectory=/home/zuploader
+ExecStart=/home/zuploader/zuploader
+Restart=on-failure
+RestartSec=5
+
+# stdout -> journald (access log)
+StandardOutput=journal
+# stderr -> journald (error log)
+StandardError=journal
+
+# journald tags para filtrar
+SyslogIdentifier=zuploader
+
+[Install]
+WantedBy=multi-user.target
