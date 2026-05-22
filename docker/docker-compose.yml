@@ -1,11 +1,12 @@
 services:
   zuploader:
-    build: .
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
     ports:
       - "8002:8002"
     volumes:
-      - /srv/zuploader/uploads:/srv/zuploader/uploads
-      - /srv/zuploader/audit.db:/srv/zuploader/audit.db
+      - /srv/zuploader:/srv/zuploader
       - ./config.toml:/app/config.toml:ro
     restart: unless-stopped
     logging:

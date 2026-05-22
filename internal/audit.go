@@ -2,6 +2,8 @@ package internal
 
 import (
 	"database/sql"
+	"os"
+	"path/filepath"
 	"time"
 
 	_ "modernc.org/sqlite"
@@ -11,21 +13,35 @@ var DB *sql.DB
 
 func InitDB(path string) {
 	var err error
+
+	dir := filepath.Dir(path)
+	if err = os.MkdirAll(dir, 0750); err != nil {
+		Error.Panicf("[FATAL] failed to create database directory %s (check permissions): %v", dir, err)
+	}
+
+	testFile := filepath.Join(dir, ".write_test")
+	if f, err := os.Create(testFile); err != nil {
+		Error.Panicf("[FATAL] database directory %s is not writable: %v", dir, err)
+	} else {
+		f.Close()
+		os.Remove(testFile)
+	}
+
 	DB, err = sql.Open("sqlite", path)
 	if err != nil {
-		Error.Panicf("[FATAL] failed to open database: %v", err)
+		Error.Panicf("[FATAL] failed to open database at %s: %v", path, err)
 	}
 
 	var exists int
 	err = DB.QueryRow(`SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='audit'`).Scan(&exists)
 	if err != nil {
-		Error.Panicf("[FATAL] failed to check database: %v", err)
+		Error.Panicf("[FATAL] failed to query database at %s (check permissions on %s): %v", path, dir, err)
 	}
 
 	if exists == 0 {
-		Error.Printf("[DB] audit.db not found, creating...")
+		Error.Printf("[DB] audit database not found, creating at %s", path)
 	} else {
-		Error.Printf("[DB] audit.db found at %s", path)
+		Error.Printf("[DB] audit database found at %s", path)
 	}
 
 	_, err = DB.Exec(`
@@ -45,7 +61,7 @@ func InitDB(path string) {
 		CREATE INDEX IF NOT EXISTS idx_file      ON audit(file);
 	`)
 	if err != nil {
-		Error.Panicf("[FATAL] failed to create audit table: %v", err)
+		Error.Panicf("[FATAL] failed to create audit table at %s: %v", path, err)
 	}
 
 	if exists == 0 {
