@@ -12,7 +12,7 @@ type Config struct {
 	Host        string `toml:"host"`
 	Port        int    `toml:"port"`
 	MaxUploadMB int    `toml:"max_upload_mb"`
-	LogFile     string `toml:"logfile"`
+	AuditDB     string `toml:"audit_db"`
 }
 
 var (

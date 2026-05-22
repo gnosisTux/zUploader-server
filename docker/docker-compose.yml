@@ -5,5 +5,11 @@ services:
       - "8002:8002"
     volumes:
       - /srv/zuploader/uploads:/srv/zuploader/uploads
+      - /srv/zuploader/audit.db:/srv/zuploader/audit.db
       - ./config.toml:/app/config.toml:ro
     restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "7"

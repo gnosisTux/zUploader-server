@@ -1,3 +1,4 @@
+
 package main
 
 import (
@@ -9,6 +10,7 @@ import (
 
 func main() {
 	internal.LoadConfig("config.toml")
+	internal.Init()
 
 	fs := http.FileServer(http.Dir("static"))
 	http.Handle("/static/", http.StripPrefix("/static/", fs))

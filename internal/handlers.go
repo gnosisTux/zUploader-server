@@ -66,6 +66,7 @@ func HandleFileUpload(w http.ResponseWriter, r *http.Request) {
 
 	if string(buf) != pgpHeader {
 		Error.Printf("[REJECTED] timestamp=%s ip=%s reason=not_pgp ua=\"%s\"", timestamp, ip, ua)
+		AuditLog("REJECTED", ip, "", 0, ua, "", "not_pgp")
 		http.Error(w, "Upload rejected: file is not PGP encrypted", http.StatusBadRequest)
 		return
 	}
@@ -106,13 +107,8 @@ func HandleFileUpload(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "File uploaded successfully. Download at: %s", downloadURL)
 
 	Access.Printf("[UPLOAD] timestamp=%s ip=%s file=%s size_bytes=%d ua=\"%s\" url=%s",
-		timestamp,
-		ip,
-		randomName,
-		header.Size,
-		ua,
-		downloadURL,
-	)
+		timestamp, ip, randomName, header.Size, ua, downloadURL)
+	AuditLog("UPLOAD", ip, randomName, header.Size, ua, "", "")
 }
 
 func HandleFileDownload(w http.ResponseWriter, r *http.Request) {
@@ -137,6 +133,7 @@ func HandleFileDownload(w http.ResponseWriter, r *http.Request) {
 	absUploadDir, _ := filepath.Abs(ConfigData.UploadDir)
 	if !strings.HasPrefix(absPath, absUploadDir) {
 		Error.Printf("[REJECTED] timestamp=%s ip=%s reason=path_traversal path=%s ua=\"%s\"", timestamp, ip, path, ua)
+		AuditLog("REJECTED", ip, path, 0, ua, "", "path_traversal")
 		http.Error(w, "Invalid path", http.StatusBadRequest)
 		return
 	}
@@ -147,17 +144,22 @@ func HandleFileDownload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	mode := "view"
 	if raw {
-		Access.Printf("[DOWNLOAD] timestamp=%s ip=%s file=%s ua=\"%s\" mode=raw",
-			timestamp, ip, path, ua)
+		mode = "raw"
+	}
+
+	Access.Printf("[DOWNLOAD] timestamp=%s ip=%s file=%s ua=\"%s\" mode=%s",
+		timestamp, ip, path, ua, mode)
+	AuditLog("DOWNLOAD", ip, path, 0, ua, mode, "")
+
+	if raw {
 		w.Header().Set("Content-Type", "application/octet-stream")
 		w.Header().Set("Content-Disposition", "attachment")
 		http.ServeFile(w, r, absPath)
 		return
 	}
 
-	Access.Printf("[DOWNLOAD] timestamp=%s ip=%s file=%s ua=\"%s\" mode=view",
-		timestamp, ip, path, ua)
 	DecryptTmpl.Execute(w, map[string]string{"File": path})
 }
 
