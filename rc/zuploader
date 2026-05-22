@@ -21,8 +21,11 @@
 
 name="zuploader"
 rcvar=zuploader_enable
+
 command="/home/zuploader/zuploader"
 pidfile="/var/run/${name}.pid"
+logfile="/var/log/zuploader/access.log"
+errfile="/var/log/zuploader/error.log"
 
 load_rc_config $name
 : ${zuploader_enable:=no}
@@ -31,18 +34,24 @@ start_precmd="zuploader_precmd"
 start_cmd="zuploader_start"
 stop_cmd="zuploader_stop"
 
-# Change to the working directory
 zuploader_precmd() {
     cd /home/zuploader || return 1
+    # Create log directory if it doesn't exist
+    install -d -o zuploader -g zuploader -m 750 /var/log/zuploader
 }
 
-# Start the service as user 'zuploader'
 zuploader_start() {
     echo "Starting zuploader..."
-    /usr/sbin/daemon -p $pidfile -u zuploader $command
+    # stdout (access log) -> access.log
+    # stderr (error log)  -> error.log
+    /usr/sbin/daemon \
+        -p $pidfile \
+        -u zuploader \
+        -o $logfile \
+        -e $errfile \
+        $command
 }
 
-# Stop the service
 zuploader_stop() {
     echo "Stopping zuploader..."
     if [ -f $pidfile ]; then
