@@ -246,16 +246,54 @@ python3 zget.py URL_TO_FILE
 
 ---
 
+## Reverse Proxy
+
+zUploader **must** be deployed behind a reverse proxy (nginx, Caddy, etc.). It relies on the `X-Forwarded-For` header to log the real client IP — if the proxy does not set this header, or if the server is exposed directly to the internet, any client can spoof their IP in logs and the audit database simply by setting that header themselves.
+
+The proxy must:
+1. Set `X-Forwarded-For` to the real client IP
+2. Strip any `X-Forwarded-For` header coming from the client before forwarding
+
+Example nginx config:
+
+```nginx
+location / {
+    proxy_pass http://127.0.0.1:8002;
+    proxy_set_header X-Forwarded-For $remote_addr;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header Host $host;
+}
+```
+
+> Note: use `$remote_addr` and not `$proxy_add_x_forwarded_for` — the latter appends to any existing header the client may have sent, which defeats the purpose.
+
+Example Caddy config:
+
+```
+your.domain {
+    reverse_proxy 127.0.0.1:8002 {
+        header_up X-Forwarded-For {remote_host}
+        header_up X-Forwarded-Proto {scheme}
+    }
+}
+```
+
+---
+
 ## Security
 
 - Only files starting with the PGP header (`-----BEGIN PGP MESSAGE-----`) are accepted
 - File names are generated randomly using a cryptographically secure random source
 - Path traversal is blocked on the download endpoint
 - No passwords or sensitive information are stored on the server
-- **Note:** the upload endpoint has no authentication. It is assumed the server is deployed behind a reverse proxy (nginx, Caddy) that restricts access as needed
+- The upload endpoint has no authentication — access control should be handled at the reverse proxy level (IP allowlist, auth middleware, etc.)
 
 ---
 
+## License
+
+This project is licensed under **GPLv3**.  
+See the `LICENSE` file for details.
 ## License
 
 This project is licensed under **GPLv3**.  
