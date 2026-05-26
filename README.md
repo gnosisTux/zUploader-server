@@ -3,6 +3,7 @@
 ---
 
 ![interface](https://i.imgur.com/d7j7GWb.png)
+
 ![encryptedfile](https://i.imgur.com/eN4HCn2.png)
 
 zUploader is a minimalist server for uploading and **decrypting files with symmetric PGP directly from the browser**.  
